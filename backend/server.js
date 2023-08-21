@@ -20,47 +20,32 @@ app.get("/photos", async (req, res) => {
 
   // redisClient.del("photos");
 
-  const photosData = await redisClient.get("photos");
+  // When user add key-value pairs in query params
+  const albumId = req.query.albumId;
+  console.log(`\nThis albumId: ${albumId}\n`);
+
+  const photosData = await redisClient.get(`photos?albumId=${albumId}`);
   console.log(`This is photoData: ${photosData}`);
 
   if (photosData != null) {
-    console.log("Cache hit");
+    console.log("\nCache Hit\n");
+
     res.json(JSON.parse(photosData));
   } else {
+    console.log("\nCache Miss\n");
+
     const { data } = await axios.get(
-      "https://jsonplaceholder.typicode.com/photos"
+      `https://jsonplaceholder.typicode.com/photos?albumId=${albumId}`
     );
+
     // This "photos" is the key of the key-value pair in our redis here
     // In redis, we can only store String, so we need to convert the data to String
-    redisClient.set("photos", JSON.stringify(data));
-    redisClient.expire("photos", DEFAULT_EXPIRATION);
+    redisClient.set(`photos?albumId=${albumId}`, JSON.stringify(data));
+    redisClient.expire(`photos?albumId=${albumId}`, DEFAULT_EXPIRATION);
     res.json(data);
   }
 
   await redisClient.quit();
-
-  // redisClient.get("photos", async (error, photos) => {
-  //   if (error) console.error(error);
-  //   if (photos != null) {
-  //     console.log("Cache hit");
-  //     return res.json(JSON.parse(photos));
-  //   } else {
-  //     const { data } = await axios.get(
-  //       "https://jsonplaceholder.typicode.com/photos"
-  //     );
-  //     // This "photos" is the key of the key-value pair in our redis here
-  //     // In redis, we can only store String, so we need to convert the data to String
-  //     redisClient.setex("photos", DEFAULT_EXPIRATION, JSON.stringify(data));
-  //   }
-  //   res.json(data);
-
-  // const albumId = req.query.albumId;
-  // console.log(albumId);
-
-  // const { data } = await axios.get(
-  //   "https://jsonplaceholder.typicode.com/photos",
-  //   { params: { albumId } }
-  // );
 });
 
 app.get("/photos/:id", async (req, res) => {
