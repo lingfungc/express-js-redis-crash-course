@@ -22,26 +22,41 @@ app.get("/photos", async (req, res) => {
 
   // When user add key-value pairs in query params
   const albumId = req.query.albumId;
-  console.log(`\nThis albumId: ${albumId}\n`);
+  console.log(`This albumId: ${albumId}`);
 
-  const photosData = await redisClient.get(`photos?albumId=${albumId}`);
+  let urlComponent;
+
+  if (albumId == null) {
+    urlComponent = "photos";
+    console.log(urlComponent);
+  } else {
+    urlComponent = `photos?albumId=${albumId}`;
+    console.log(urlComponent);
+  }
+
+  const photosData = await redisClient.get(`${urlComponent}`);
   console.log(`This is photoData: ${photosData}`);
 
   if (photosData != null) {
-    console.log("\nCache Hit\n");
+    console.log("Cache Hit\n");
 
     res.json(JSON.parse(photosData));
   } else {
-    console.log("\nCache Miss\n");
+    console.log("Cache Miss\n");
 
     const { data } = await axios.get(
-      `https://jsonplaceholder.typicode.com/photos?albumId=${albumId}`
+      `https://jsonplaceholder.typicode.com/${urlComponent}`
     );
 
-    // This "photos" is the key of the key-value pair in our redis here
-    // In redis, we can only store String, so we need to convert the data to String
-    redisClient.set(`photos?albumId=${albumId}`, JSON.stringify(data));
-    redisClient.expire(`photos?albumId=${albumId}`, DEFAULT_EXPIRATION);
+    if (albumId == null) {
+      redisClient.set(`photos`, JSON.stringify(data));
+      redisClient.expire(`photos`, DEFAULT_EXPIRATION);
+    } else {
+      // This "photos" is the key of the key-value pair in our redis here
+      // In redis, we can only store String, so we need to convert the data to String
+      redisClient.set(`photos?albumId=${albumId}`, JSON.stringify(data));
+      redisClient.expire(`photos?albumId=${albumId}`, DEFAULT_EXPIRATION);
+    }
     res.json(data);
   }
 
@@ -57,4 +72,4 @@ app.get("/photos/:id", async (req, res) => {
 });
 
 // URL reference: http://localhost:3000/photos
-app.listen(3000, () => console.log("Server is listening to port 3000"));
+app.listen(3000, () => console.log("Server is listening to port 3000\n"));
