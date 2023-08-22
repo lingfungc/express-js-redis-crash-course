@@ -35,7 +35,7 @@ app.get("/photos", async (req, res) => {
   }
 
   const photosData = await redisClient.get(`${urlComponent}`);
-  console.log(`This is photoData: ${photosData}`);
+  // console.log(`This is photosData: ${photosData}`);
 
   if (photosData != null) {
     console.log("Cache Hit\n");
@@ -64,11 +64,31 @@ app.get("/photos", async (req, res) => {
 });
 
 app.get("/photos/:id", async (req, res) => {
-  const { data } = await axios.get(
-    `https://jsonplaceholder.typicode.com/photos/${req.params.id}`
-  );
+  await redisClient.connect();
 
-  res.json(data);
+  const photoData = await redisClient.get(`photos?id=${req.params.id}`);
+  // console.log(`This is photoData: ${photoData}`);
+
+  if (photoData != null) {
+    console.log("Cache Hit\n");
+
+    res.json(JSON.parse(photoData));
+  } else {
+    console.log("Cache Miss\n");
+
+    const { data } = await axios.get(
+      `https://jsonplaceholder.typicode.com/photos/${req.params.id}`
+    );
+
+    // This "photos/:id" is the key of the key-value pair in our redis here
+    // In redis, we can only store String, so we need to convert the data to String
+    redisClient.set(`photos?id=${req.params.id}`, JSON.stringify(data));
+    redisClient.expire(`photos?id=${req.params.id}`, DEFAULT_EXPIRATION);
+
+    res.json(data);
+  }
+
+  await redisClient.quit();
 });
 
 // URL reference: http://localhost:3000/photos
